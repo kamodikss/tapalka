@@ -1,0 +1,85 @@
+import asyncio
+import logging
+import os
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import CommandStart
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice, PreCheckoutQuery, Message, WebAppInfo
+from aiohttp import web
+
+# ТОКЕН БОТА
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "ВСТАВЬ_СЮДА_ТОКЕН_ОТ_BOTFATHER")
+# ССЫЛКА НА ИГРУ
+WEBAPP_URL = "https://tapalkaleafs.netlify.app/"
+
+logging.basicConfig(level=logging.INFO)
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+
+# Товары в магазине (ID товара: цена в звездах)
+SHOP_ITEMS = {
+    "mult_5": {"title": "✨ Множитель +5", "price": 50},
+    "energy_1000": {"title": "⚡ Энергия +1000", "price": 30},
+    "tap_10": {"title": "💪 Сила +10", "price": 100},
+    "auto_5": {"title": "🤖 Авто +5 ур.", "price": 150},
+    "rebirth_1": {"title": "🔁 Перерождение +1", "price": 500}
+}
+
+@dp.message(CommandStart())
+async def cmd_start(message: Message):
+    # Кнопка для запуска игры
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🍃 Играть", web_app=WebAppInfo(url=WEBAPP_URL))]
+    ])
+    await message.answer("Привет! Нажми кнопку ниже, чтобы играть в Листочки:", reply_markup=kb)
+
+# Обработка запроса на покупку из WebApp
+@dp.message(F.web_app_data)
+async def handle_webapp_data(message: Message):
+    data = message.web_app_data.data
+    logging.info(f"WebApp data: {data}")
+    
+    if data.startswith("buy_"):
+        item_id = data.replace("buy_", "")
+        if item_id in SHOP_ITEMS:
+            item = SHOP_ITEMS[item_id]
+            # Отправляем счет на оплату в Telegram Stars (валюта XTR)
+            await message.answer_invoice(
+                title=item["title"],
+                description=f"Покупка в игре Листочки",
+                payload=f"item_{item_id}",
+                provider_token="", # Для Stars оставляем пустым!
+                currency="XTR", # XTR - это код Telegram Stars
+                prices=[LabeledPrice(label=item["title"], amount=item["price"])]
+            )
+
+# Проверка перед оплатой (обязательно для Stars)
+@dp.pre_checkout_query()
+async def pre_checkout_query(pre_checkout_q: PreCheckoutQuery):
+    await bot.answer_pre_checkout_query(pre_checkout_q.id, ok=True)
+
+# Успешная оплата
+@dp.message(F.successful_payment)
+async def successful_payment(message: Message):
+    payload = message.successful_payment.invoice_payload
+    item_id = payload.replace("item_", "")
+    
+    await message.answer(f"✅ Успешно куплено: {SHOP_ITEMS[item_id]['title']}!\n\nЗаходи в игру, чтобы использовать бонус.")
+
+# --- Веб-сервер (нужен для того, чтобы Render не засыпал) ---
+async def handle(request):
+    return web.Response(text="Bot is running!")
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get("/", handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", int(os.environ.get("PORT", 8080)))
+    await site.start()
+
+async def main():
+    await start_web_server()
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
