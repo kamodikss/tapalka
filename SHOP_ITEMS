@@ -17,11 +17,11 @@ dp = Dispatcher()
 
 # Товары в магазине (ID товара: цена в звездах)
 SHOP_ITEMS = {
-    "mult_5": {"title": "✨ Множитель +5", "price": 50},
-    "energy_1000": {"title": "⚡ Энергия +1000", "price": 30},
-    "tap_10": {"title": "💪 Сила +10", "price": 100},
-    "auto_5": {"title": "🤖 Авто +5 ур.", "price": 150},
-    "rebirth_1": {"title": "🔁 Перерождение +1", "price": 500}
+    "mult_5": {"title": "✨ Множитель +5", "price": 25},
+    "energy_1000": {"title": "⚡ Энергия +1000", "price": 15},
+    "tap_10": {"title": "💪 Сила +10", "price": 20},
+    "auto_5": {"title": "🤖 Авто +5 ур.", "price": 75},
+    "rebirth_1": {"title": "🔁 Перерождение +1", "price": 200}
 }
 
 @dp.message(CommandStart())
