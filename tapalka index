@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Листочки</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAemsumDFRVv93sWQTZidFu_Mp1ZkMnmXk",
+    authDomain: "tapalka-6e490.firebaseapp.com",
+    databaseURL: "https://tapalka-6e490-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "tapalka-6e490",
+    storageBucket: "tapalka-6e490.firebasestorage.app",
+    messagingSenderId: "423803092822",
+    appId: "1:423803092822:web:81712a9f86d76355b260f7"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  window.fbSaveScore = function(nick, scoreStr) {
+    if (!nick) return;
+    const safeNick = nick.replace(/[.#$\[\]]/g, '_'); 
+    set(ref(db, 'leaderboard/' + safeNick), {
+      name: nick,
+      score: scoreStr,
+      time: Date.now()
+    }).catch(e => console.log('Firebase error:', e));
+  };
+
+  window.fbLoadLeaderboard = function(callback) {
+    const dbRef = ref(db, 'leaderboard');
+    onValue(dbRef, (snapshot) => {
+      const data = snapshot.val();
+      const list = [];
+      if (data) {
+        for (let key in data) {
+          list.push(data[key]);
+        }
+      }
+      list.sort((a, b) => {
+        try { return BigInt(b.score) > BigInt(a.score) ? 1 : -1; } catch(e) { return 0; }
+      });
+      callback(list);
+    });
+  };
+</script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { background: radial-gradient(circle at 50% 0%, #14281e 0%, #0a1310 60%, #060b09 100%); color: #e8f5e8; font-family: 'Segoe UI', Arial, sans-serif; overflow-x: hidden; overflow-y: hidden; user-select: none; min-height: 100vh; }
+  
+  #game { display: flex; flex-direction: column; height: 100vh; padding: 8px 10px 10px; overflow: hidden; }
+  
+  .top-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; padding: 8px 12px; background: linear-gradient(135deg, rgba(30,60,45,0.9), rgba(15,30,22,0.9)); border: 1px solid rgba(100,220,120,0.3); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+  .nick-bar { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #e8f5e8; }
+  .nick-bar .nick { color: #96ff96; font-weight: bold; font-size: 15px; text-shadow: 0 0 8px rgba(150,255,150,0.4); }
+  .nick-bar button { padding: 5px 10px; border-radius: 8px; border: none; background: linear-gradient(135deg, #78e8a8, #4dbb78); color: #04200f; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(120,232,168,0.4); }
+  
+  .stats { text-align: center; margin-bottom: 5px; }
+  .stats .score { font-size: 36px; font-weight: bold; color: #96ff96; text-shadow: 0 0 15px rgba(150,255,150,0.5); margin-bottom: 5px; }
+  .stats .best { font-size: 14px; color: #ffdc64; margin-bottom: 5px; }
+  
+  .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+  
+  #tapBtn {
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    border: 8px solid #c8ffc8;
+    background: radial-gradient(circle at 35% 30%, #8effa0, #1e823c 70%, #0d5226);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.05s ease-in-out;
+    box-shadow: 0 0 70px rgba(100, 220, 120, 0.6), inset 0 -20px 40px rgba(0,0,0,0.4), inset 0 10px 20px rgba(255,255,255,0.2);
+    text-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  }
+  #tapBtn:active { 
+    transform: scale(0.85); 
+    box-shadow: 0 0 30px rgba(100, 220, 120, 0.8), inset 0 -10px 20px rgba(0,0,0,0.4); 
+  }
+
+  #golden { position: absolute; top: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle, #ffe864, #ffb800); font-size: 30px; border: 3px solid #fff; cursor: pointer; display: none; box-shadow: 0 0 25px rgba(255,220,0,0.8); animation: pulse 0.6s infinite alternate; }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.15); } }
+  
+  .log { text-align: center; font-size: 12px; font-style: italic; color: #b4c8b4; padding: 5px 0; min-height: 20px; }
+
+  .bottom-menu { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .menu-btn { padding: 15px 5px; border-radius: 14px; border: none; font-weight: bold; font-size: 14px; cursor: pointer; color: #04200f; background: linear-gradient(135deg, #64c8ff, #3a9bdc); box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .menu-btn span { font-size: 24px; }
+
+  .panel { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: rgba(12, 22, 18, 0.95); backdrop-filter: blur(10px); z-index: 100; display: none; flex-direction: column; padding: 20px; overflow-y: auto; }
+  .panel.active { display: flex; animation: slideUp 0.3s ease; }
+  @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  
+  .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .panel-title { font-size: 22px; font-weight: bold; color: #96ff96; text-shadow: 0 0 10px rgba(150,255,150,0.5); }
+  .close-btn { background: #ff8a8a; color: #fff; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 10px rgba(255,100,100,0.4); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid-1 { display: grid; grid-template-columns: 1fr; gap: 10px; }
+
+  .btn { padding: 16px 8px; border-radius: 12px; border: none; font-weight: bold; font-size: 13px; cursor: pointer; color: #04200f; line-height: 1.4; min-height: 60px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  
+  .btn-mult { background: linear-gradient(135deg, #d4a8ff, #a86cdc); color: #1a0a2a; }
+  .btn-energy { background: linear-gradient(135deg, #78e0ff, #40a8dc); color: #04202a; }
+  .btn-tapPower { background: linear-gradient(135deg, #ffc078, #dc8830); color: #2a1400; }
+  .btn-auto { background: linear-gradient(135deg, #a8ffd0, #58d090); color: #04200f; }
+  .btn-rebirth { background: linear-gradient(135deg, #ffe878, #dcb830); color: #2a2000; }
+  .btn-daily { background: linear-gradient(135deg, #ffd078, #dcb050); color: #2a1800; }
+  .btn-quest { background: linear-gradient(135deg, #a8d0ff, #6090dc); color: #001830; }
+  .btn-critC { background: linear-gradient(135deg, #ffa8d0, #dc60a0); color: #2a0018; }
+  .btn-critM { background: linear-gradient(135deg, #ffc0e0, #dc80b8); color: #2a0018; }
+  .btn-ad { background: linear-gradient(135deg, #ffdc78, #e0b030); color: #2a1a00; }
+  .btn-stars { background: linear-gradient(135deg, #ffb8e8, #e060b8); color: #2a0020; }
+  .btn-share { background: linear-gradient(135deg, #a8d0ff, #6090dc); color: #000; }
+  .btn-promo { background: linear-gradient(135deg, #ff8a8a, #e05050); color: #fff; }
+
+  .leader-row { display: flex; justify-content: space-between; padding: 12px 15px; background: rgba(30,60,45,0.5); border-radius: 10px; margin-bottom: 8px; font-size: 14px; border: 1px solid rgba(100,220,120,0.1); }
+  .leader-row.me { background: rgba(42,74,56,0.9); border: 1px solid #64dc96; }
+  .leader-row .rank { color: #ffdc64; font-weight: bold; margin-right: 10px; }
+
+  .input-row { display: flex; gap: 10px; margin-bottom: 15px; }
+  .input-row input { flex: 1; padding: 12px; border-radius: 10px; border: 2px solid #3a6b52; background: #0a1310; color: #fff; font-size: 16px; outline: none; }
+  .input-row button { padding: 12px 20px; border-radius: 10px; border: none; background: #64dc96; color: #000; font-weight: bold; font-size: 16px; cursor: pointer; }
+  
+  .admin-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+  .admin-field label { color: #b4c8b4; font-size: 13px; }
+  .admin-field input { padding: 10px; border-radius: 8px; border: 1px solid #3a6b52; background: #0a1310; color: #fff; font-size: 14px; }
+
+  /* ===== АНИМАЦИЯ ВСЕХ КНОПОК ===== */
+  .btn, .menu-btn, .close-btn, .input-row button, button {
+    transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.1s ease;
+    will-change: transform;
+  }
+
+  .btn:active, .menu-btn:active, .close-btn:active, .input-row button:active, button:active {
+    transform: scale(0.92) !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
+  }
+
+  @media (hover: hover) {
+    .btn:hover, .menu-btn:hover {
+      filter: brightness(1.1);
+    }
+  }
+
+</style>
+</head>
+<body>
+
+<div id="game">
+  <div class="top-header">
+    <div class="nick-bar">
+      <span>👤 <span class="nick" id="nickDisplay">—</span></span>
+      <button onclick="openNickModal()">✏️</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="score" id="score">0</div>
+    <div class="best">🏆 Рекорд: <span id="best">0</span></div>
+  </div>
+
+  <div class="center" onclick="tap()">
+    <button id="tapBtn">
+      <svg viewBox="0 0 24 24" width="120" height="120" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+        <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+      </svg>
+    </button>
+    <button id="golden" onclick="claimGolden(); event.stopPropagation();">⭐</button>
+  </div>
+
+  <div class="log" id="log">Тапай и качайся!</div>
+
+  <div class="bottom-menu">
+    <button class="menu-btn" onclick="openPanel('shopPanel')"><span>🏪</span>Магазин</button>
+    <button class="menu-btn" onclick="openPanel('bonusPanel')" style="background: linear-gradient(135deg, #ffd078, #dcb050);"><span>🎁</span>Бонусы</button>
+    <button class="menu-btn" onclick="showLeaderboard()" style="background: linear-gradient(135deg, #ffa8d0, #dc60a0);"><span>🏅</span>Лидеры</button>
+  </div>
+</div>
+
+<!-- ПАНЕЛЬ: МАГАЗИН -->
+<div class="panel" id="shopPanel">
+  <div class="panel-header">
+    <div class="panel-title">🏪 Магазин</div>
+    <button class="close-btn" onclick="closePanel('shopPanel')">✕</button>
+  </div>
+  
+  <div class="grid-2" style="margin-bottom: 20px;">
+    <button class="btn btn-mult" id="multBtn" onclick="buyMult()">✨ x1 (500)</button>
+    <button class="btn btn-energy" id="energyBtn" onclick="buyEnergy()">⚡ +100 (100)</button>
+    <button class="btn btn-tapPower" id="tapPowerBtn" onclick="buyTapPower()">💪 +1 (50)</button>
+    <button class="btn btn-auto" id="autoBtn" onclick="buyAuto()">🤖 Авто ур.0 (1000)</button>
+  </div>
+
+  <div class="panel-title" style="font-size: 18px; margin-bottom: 15px;">🔁 Перерождение</div>
+  <div class="grid-1">
+    <button class="btn btn-rebirth" id="rebirthBtn" onclick="doRebirth()">🔁 Перерождение (100000)</button>
+  </div>
+</div>
+
+<!-- ПАНЕЛЬ: БОНУСЫ -->
+<div class="panel" id="bonusPanel">
+  <div class="panel-header">
+    <div class="panel-title">🎁 Бонусы</div>
+    <button class="close-btn" onclick="closePanel('bonusPanel')">✕</button>
+  </div>
+
+  <div class="grid-1" style="margin-bottom: 20px;">
+    <button class="btn btn-daily" id="dailyBtn" onclick="claimDaily()">📅 Бонус за вход</button>
+    <button class="btn btn-quest" id="questBtn" onclick="claimQuest()">🎯 Квест: 0/200</button>
+  </div>
+
+  <div class="panel-title" style="font-size: 18px; margin-bottom: 15px;">💎 Монетизация</div>
+  <div class="grid-1" style="margin-bottom: 20px;">
+    <button class="btn btn-ad" id="adBtn" onclick="watchAd()">📺 Смотреть рекламу (+бонус)</button>
+    <button class="btn btn-stars" onclick="openShop()">💎 Купить бонус (Telegram Stars)</button>
+  </div>
+
+  <div class="panel-title" style="font-size: 18px; margin-bottom: 15px;">🌟 Престиж</div>
+  <div class="grid-2" style="margin-bottom: 20px;">
+    <button class="btn btn-critC" id="prestigeCritBtn" onclick="buyPrestigeCrit()">💥 Крит +1% (1🔁)</button>
+    <button class="btn btn-critM" id="prestigeMultBtn" onclick="buyPrestigeMult()">✴ Крит x+1 (1🔁)</button>
+  </div>
+
+  <div class="grid-1">
+    <button class="btn btn-promo" onclick="openPanel('promoPanel')">🎁 Ввести промокод</button>
+    <button class="btn btn-share" onclick="shareGame()">👥 Пригласить друга</button>
+  </div>
+</div>
+
+<!-- ПАНЕЛЬ: ЛИДЕРЫ -->
+<div class="panel" id="leaderPanel">
+  <div class="panel-header">
+    <div class="panel-title">🏅 Лидеры</div>
+    <button class="close-btn" onclick="closePanel('leaderPanel')">✕</button>
+  </div>
+  <div id="leaderList">Загрузка...</div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО: ПРОМОКОД -->
+<div class="panel" id="promoPanel">
+  <div class="panel-header">
+    <div class="panel-title">🎁 Ввести код</div>
+    <button class="close-btn" onclick="closePanel('promoPanel')">✕</button>
+  </div>
+  <div class="input-row">
+    <input id="promoInput" placeholder="Введите промокод..." />
+    <button onclick="applyPromo()">OK</button>
+  </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО: НИКНЕЙМ -->
+<div class="panel" id="nickPanel">
+  <div class="panel-header">
+    <div class="panel-title" id="nickTitle">👤 Выбор ника</div>
+    <button class="close-btn" onclick="closePanel('nickPanel')">✕</button>
+  </div>
+  <div class="input-row">
+    <input id="nickInput" type="text" maxlength="20" placeholder="Ник..." />
+    <button onclick="saveNick()">OK</button>
+  </div>
+</div>
+
+<!-- ПАНЕЛЬ: АДМИН -->
+<div class="panel" id="adminPanel">
+  <div class="panel-header">
+    <div class="panel-title">🔧 Админ</div>
+    <button class="close-btn" onclick="closePanel('adminPanel')">✕</button>
+  </div>
+  <div class="admin-field"><label>Листочки:</label><input id="admScore" type="text" /></div>
+  <div class="admin-field"><label>Множитель:</label><input id="admMult" type="text" /></div>
+  <div class="admin-field"><label>Энергия:</label><input id="admEnergy" type="text" /></div>
+  <div class="admin-field"><label>Сила:</label><input id="admTapPower" type="text" /></div>
+  <div class="admin-field"><label>Перерождений:</label><input id="admRebirth" type="text" /></div>
+  <button class="btn btn-share" onclick="applyAdmin()" style="margin-top: 10px;">Применить</button>
+</div>
+
+<!-- ПАНЕЛЬ: МАГАЗИН STARS -->
+<div class="panel" id="starsPanel">
+  <div class="panel-header">
+    <div class="panel-title">💎 Магазин бонусов</div>
+    <button class="close-btn" onclick="closePanel('starsPanel')">✕</button>
+  </div>
+  <p style="text-align:center;color:#b4c8b4;font-size:13px;margin-bottom:15px;">Покупка за Telegram Stars</p>
+  <div id="starsList"></div>
+</div>
+
+<script>
+let tg = null;
+if (window.Telegram && window.Telegram.WebApp) {
+  tg = window.Telegram.WebApp;
+  tg.ready();
+  tg.expand();
+}
+
+let G = {
+  score: 0n, bestScore: 0n,
+  energy: 500n, maxEnergy: 500n,
+  tapPower: 1n, multiplier: 1n,
+  energyCost: 100n, multiplierCost: 500n, tapPowerCost: 50n,
+  autoTapLevel: 0n, autoTapCost: 1000n,
+  rebirthCount: 0, rebirthCost: 100000n, rebirthBonus: 1.0,
+  totalTaps: 0n,
+  critChance: 5, critMultiplier: 10,
+  questCompleted: false, questProgress: 0n, questGoal: 200n,
+  prestigeCritChance: 0, prestigeCritMult: 0,
+  prestigeCritCost: 1n, prestigeMultCost: 1n,
+  lastDailyDate: "", goldenActive: false,
+  lastUpgradeTime: 0, nickname: "",
+  adBoostUntil: 0, adsWatched: 0,
+  noAdTimer: false
+};
+
+function save() {
+  const data = {};
+  for (let k in G) {
+    if (typeof G[k] === 'bigint') data[k] = G[k].toString();
+    else data[k] = G[k];
+  }
+  localStorage.setItem('tapalka_save', JSON.stringify(data));
+  if (window.fbSaveScore && G.nickname) {
+    window.fbSaveScore(G.nickname, G.bestScore.toString());
+  }
+}
+
+function load() {
+  const raw = localStorage.getItem('tapalka_save');
+  if (!raw) return;
+  try {
+    const data = JSON.parse(raw);
+    for (let k in data) {
+      if (k in G) {
+        if (typeof G[k] === 'bigint') G[k] = BigInt(data[k]);
+        else G[k] = data[k];
+      }
+    }
+  } catch (e) {}
+}
+
+function log(text) { document.getElementById('log').textContent = text; }
+function fmt(n) { if (typeof n === 'bigint') n = n.toString(); return n; }
+
+function openPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function closePanel(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function checkNickname() {
+  if (!G.nickname) {
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      const tgName = tg.initDataUnsafe.user.first_name || tg.initDataUnsafe.user.username;
+      if (tgName) { G.nickname = tgName; save(); return; }
+    }
+    openNickModal(true);
+  }
+}
+
+function openNickModal(isFirst) {
+  document.getElementById('nickInput').value = G.nickname || '';
+  document.getElementById('nickTitle').textContent = isFirst ? '👋 Привет! Как тебя зовут?' : '✏️ Изменить ник';
+  openPanel('nickPanel');
+}
+
+function saveNick() {
+  const val = document.getElementById('nickInput').value.trim();
+  if (val.length < 2 || val.length > 20) { log('❌ Ник от 2 до 20 символов'); return; }
+  G.nickname = val;
+  document.getElementById('nickDisplay').textContent = val;
+  log('✅ Ник сохранён: ' + val);
+  closePanel('nickPanel');
+  save(); updateUI();
+}
+
+function updateUI() {
+  if (G.score > G.bestScore) G.bestScore = G.score;
+  document.getElementById('score').textContent = fmt(G.score);
+  document.getElementById('best').textContent = fmt(G.bestScore);
+  document.getElementById('nickDisplay').textContent = G.nickname || '—';
+  
+  document.getElementById('multBtn').textContent = '✨ x' + fmt(G.multiplier + 1n) + ' (' + fmt(G.multiplierCost) + ')';
+  document.getElementById('energyBtn').textContent = '⚡ +100 (' + fmt(G.energyCost) + ')';
+  document.getElementById('tapPowerBtn').textContent = '💪 +1 (' + fmt(G.tapPowerCost) + ')';
+  document.getElementById('autoBtn').textContent = '🤖 Авто ур.' + fmt(G.autoTapLevel) + ' (' + fmt(G.autoTapCost) + ')';
+  document.getElementById('rebirthBtn').textContent = '🔁 Перерождение (' + fmt(G.rebirthCost) + ')';
+  document.getElementById('prestigeCritBtn').textContent = '💥 Крит +1% (' + fmt(G.prestigeCritCost) + '🔁)';
+  document.getElementById('prestigeMultBtn').textContent = '✴ Крит x+1 (' + fmt(G.prestigeMultCost) + '🔁)';
+  document.getElementById('questBtn').textContent = '🎯 Квест: ' + fmt(G.questProgress) + '/' + fmt(G.questGoal);
+
+  const adBtn = document.getElementById('adBtn');
+  const now = Date.now();
+  if (!G.noAdTimer && G.adBoostUntil > now) {
+    const minsLeft = Math.ceil((G.adBoostUntil - now) / 60000);
+    adBtn.textContent = '📺 Boost x2 (' + minsLeft + ' мин)';
+    adBtn.disabled = true;
+  } else {
+    adBtn.textContent = '📺 Смотреть рекламу (+бонус)';
+    adBtn.disabled = false;
+  }
+
+  const today = new Date().toISOString().slice(0,10);
+  const dailyBtn = document.getElementById('dailyBtn');
+  if (G.lastDailyDate === today) {
+    dailyBtn.textContent = '📅 Получено ✅';
+    dailyBtn.disabled = true;
+  } else {
+    dailyBtn.textContent = '📅 Бонус за вход';
+    dailyBtn.disabled = false;
+  }
+  const questBtn = document.getElementById('questBtn');
+  if (G.questCompleted) {
+    questBtn.textContent = '🎯 Готово ✅';
+    questBtn.disabled = true;
+  } else questBtn.disabled = false;
+}
+
+function applyRebirthBonus(gain) {
+  if (G.rebirthBonus === 1.0) return gain;
+  const bonusStr = G.rebirthBonus.toFixed(2);
+  const [intPart, fracPart] = bonusStr.split('.');
+  const bonusBig = BigInt(intPart) * 100n + BigInt(fracPart);
+  return (gain * bonusBig) / 100n;
+}
+
+function tap() {
+  if (G.energy >= G.tapPower && G.energy > 0n) {
+    G.energy -= G.tapPower;
+    if (G.energy < 0n) G.energy = 0n;
+    let gain = G.tapPower * G.multiplier;
+    gain = applyRebirthBonus(gain);
+    if (G.adBoostUntil > Date.now()) gain = gain * 2n;
+    
+    const rnd = Math.floor(Math.random() * 100);
+    const totalCritChance = G.critChance + G.prestigeCritChance;
+    const totalCritMult = G.critMultiplier + G.prestigeCritMult;
+    if (rnd < totalCritChance) {
+      gain = gain * BigInt(totalCritMult);
+      log('💥 КРИТ x' + totalCritMult + '! +' + fmt(gain));
+    } else log('+' + fmt(gain));
+    
+    G.score += gain;
+    if (G.score > G.bestScore) G.bestScore = G.score;
+    G.totalTaps += 1n;
+    G.questProgress += 1n;
+    
+    updateUI(); 
+    if (Math.random() < 0.1) save(); 
+    
+    if (navigator.vibrate) navigator.vibrate(10);
+  } else log('⚡ Нет энергии!');
+}
+
+function checkCooldown() {
+  const now = Date.now();
+  if (now - G.lastUpgradeTime < 300) { log('⏳ Подожди'); return false; }
+  G.lastUpgradeTime = now; return true;
+}
+
+function buyMult() {
+  if (!checkCooldown()) return;
+  if (G.score >= G.multiplierCost) {
+    G.score -= G.multiplierCost; G.multiplier += 1n;
+    G.multiplierCost *= 2n;
+    log('✨ Множитель → x' + fmt(G.multiplier));
+    updateUI(); save();
+  } else log('❌ Мало листочков');
+}
+
+function buyEnergy() {
+  if (!checkCooldown()) return;
+  if (G.score >= G.energyCost) {
+    G.score -= G.energyCost;
+    G.maxEnergy += 100n; G.energy += 100n; G.energyCost *= 2n;
+    log('⚡ Макс. энергия → ' + fmt(G.maxEnergy));
+    updateUI(); save();
+  } else log('❌ Мало листочков');
+}
+
+function buyTapPower() {
+  if (!checkCooldown()) return;
+  if (G.score >= G.tapPowerCost) {
+    G.score -= G.tapPowerCost; G.tapPower += 1n;
+    G.tapPowerCost *= 2n;
+    log('💪 Сила → ' + fmt(G.tapPower));
+    updateUI(); save();
+  } else log('❌ Мало листочков');
+}
+
+function buyAuto() {
+  if (!checkCooldown()) return;
+  if (G.score >= G.autoTapCost) {
+    G.score -= G.autoTapCost; G.autoTapLevel += 1n;
+    G.autoTapCost *= 3n;
+    log('🤖 Авто → ур.' + fmt(G.autoTapLevel));
+    updateUI(); save();
+  } else log('❌ Мало листочков');
+}
+
+function doRebirth() {
+  if (G.score >= G.rebirthCost) {
+    if (!confirm('Сбросит ВСЁ, но даст бонус. Продолжить?')) return;
+    G.rebirthCount++;
+    G.rebirthBonus = 1.0 + (G.rebirthCount * 0.5);
+    G.prestigeCritCost += 1n; G.prestigeMultCost += 1n;
+    G.score = 0n; G.energy = 500n; G.maxEnergy = 500n;
+    G.tapPower = 1n; G.multiplier = 1n;
+    G.energyCost = 100n; G.multiplierCost = 500n; G.tapPowerCost = 50n;
+    G.autoTapLevel = 0n; G.autoTapCost = 1000n;
+    G.rebirthCost *= 5n;
+    log('🔁 Перерождение #' + G.rebirthCount + '! x' + G.rebirthBonus.toFixed(1));
+    updateUI(); save();
+  } else log('❌ Мало листочков');
+}
+
+function claimDaily() {
+  const today = new Date().toISOString().slice(0,10);
+  if (G.lastDailyDate !== today) {
+    G.score += 5000n;
+    G.maxEnergy += 500n; G.energy = G.maxEnergy;
+    G.lastDailyDate = today;
+    log('📅 +5000 листочков');
+    updateUI(); save();
+  } else log('❌ Уже получал сегодня');
+}
+
+function claimQuest() {
+  if (G.questCompleted) { log('❌ Уже выполнен'); return; }
+  if (G.questProgress >= G.questGoal) {
+    G.score += 5000n; G.questCompleted = true;
+    log('🎯 Квест выполнен! +5000');
+    updateUI(); save();
+  } else log('❌ Ещё не готово: ' + fmt(G.questProgress) + '/' + fmt(G.questGoal));
+}
+
+function buyPrestigeCrit() {
+  if (BigInt(G.rebirthCount) >= G.prestigeCritCost) {
+    G.rebirthCount -= Number(G.prestigeCritCost);
+    G.prestigeCritChance += 1;
+    G.prestigeCritCost += 1n;
+    log('💥 Шанс крита → ' + (G.critChance + G.prestigeCritChance) + '%');
+    updateUI(); save();
+  } else log('❌ Нужно ' + fmt(G.prestigeCritCost) + ' перерождений');
+}
+
+function buyPrestigeMult() {
+  if (BigInt(G.rebirthCount) >= G.prestigeMultCost) {
+    G.rebirthCount -= Number(G.prestigeMultCost);
+    G.prestigeCritMult += 1;
+    G.prestigeMultCost += 1n;
+    log('✴ Множитель крита → x' + (G.critMultiplier + G.prestigeCritMult));
+    updateUI(); save();
+  } else log('❌ Нужно ' + fmt(G.prestigeMultCost) + ' перерождений');
+}
+
+function applyPromo() {
+  const input = document.getElementById('promoInput');
+  const code = input.value.trim();
+  input.value = '';
+  if (!code) return;
+  
+  if (code === '777') {
+    G.score += 10000n; G.maxEnergy += 5000n; G.energy = G.maxEnergy; G.multiplier *= 10n;
+    log('✅ 777 активирован!');
+  } else if (code === 'dev') {
+    resetAll(); log('🛠 DEV: всё сброшено');
+  } else if (code === 'golden') {
+    spawnGolden(); log('⭐ Золотой вызван!');
+  } else if (code === 'andreidev') {
+    openPanel('adminPanel');
+  } else if (code === 'adminboost') {
+    G.noAdTimer = true;
+    G.adBoostUntil = 0;
+    log('🚀 Таймер рекламы ОТКЛЮЧЕН!');
+  } else {
+    log('❌ Неверный промокод');
+  }
+  closePanel('promoPanel');
+  updateUI(); save();
+}
+
+function resetAll() {
+  G.score = 0n; G.bestScore = 0n; G.energy = 500n; G.maxEnergy = 500n;
+  G.tapPower = 1n; G.multiplier = 1n;
+  G.energyCost = 100n; G.multiplierCost = 500n; G.tapPowerCost = 50n;
+  G.autoTapLevel = 0n; G.autoTapCost = 1000n;
+  G.rebirthCount = 0; G.rebirthCost = 100000n; G.rebirthBonus = 1.0;
+  G.totalTaps = 0n; G.critChance = 5; G.critMultiplier = 10;
+  G.questCompleted = false; G.questProgress = 0n;
+  G.prestigeCritChance = 0; G.prestigeCritMult = 0;
+  G.prestigeCritCost = 1n; G.prestigeMultCost = 1n;
+  G.lastDailyDate = ""; G.adBoostUntil = 0; G.noAdTimer = false;
+}
+
+function applyAdmin() {
+  try {
+    G.score = BigInt(document.getElementById('admScore').value || 0);
+    G.multiplier = BigInt(document.getElementById('admMult').value || 1);
+    G.maxEnergy = BigInt(document.getElementById('admEnergy').value || 500);
+    G.energy = G.maxEnergy;
+    G.tapPower = BigInt(document.getElementById('admTapPower').value || 1);
+    G.rebirthCount = parseInt(document.getElementById('admRebirth').value || 0);
+    G.rebirthBonus = 1.0 + (G.rebirthCount * 0.5);
+    log('🔧 Админ применён'); updateUI(); save(); closePanel('adminPanel');
+  } catch (e) { log('❌ Только числа'); }
+}
+
+function spawnGolden() {
+  if (G.goldenActive) return;
+  G.goldenActive = true;
+  const g = document.getElementById('golden');
+  g.style.display = 'block';
+  g.style.top = (20 + Math.random() * 200) + 'px';
+  g.style.right = (20 + Math.random() * 100) + 'px';
+  log('⭐ ЗОЛОТОЙ! Успей!');
+  setTimeout(() => {
+    if (G.goldenActive) {
+      G.goldenActive = false;
+      g.style.display = 'none';
+      log('⭐ Упустил...');
+    }
+  }, 5000);
+}
+
+function claimGolden() {
+  if (!G.goldenActive) return;
+  let bonus = G.tapPower * G.multiplier * 50n;
+  bonus = applyRebirthBonus(bonus);
+  G.score += bonus;
+  log('⭐ +' + fmt(bonus));
+  G.goldenActive = false;
+  document.getElementById('golden').style.display = 'none';
+  updateUI(); save();
+}
+
+function watchAd() {
+  if (!G.noAdTimer && G.adBoostUntil > Date.now()) return log('⏳ Буст уже активен');
+  const adUrl = 'https://uplcm.com/4/12109112?country=us'; 
+
+  try {
+    if (tg && tg.openLink) { tg.openLink(adUrl); } else { window.open(adUrl, '_blank'); }
+    G.adBoostUntil = Date.now() + 60 * 60 * 1000;
+    log('✅ Буст x2 активирован на 1 час!');
+    updateUI(); save();
+  } catch (e) { log('❌ Ошибка открытия рекламы'); }
+}
+
+const SHOP_ITEMS = [
+  { id: 'mult_5', name: '✨ Множитель +5', price: 25 },
+  { id: 'energy_1000', name: '⚡ Энергия +1000', price: 15 },
+  { id: 'tap_10', name: '💪 Сила +10', price: 20 },
+  { id: 'auto_5', name: '🤖 Авто +5 ур.', price: 75 },
+  { id: 'rebirth_1', name: '🔁 Перерождение +1', price: 200 }
+];
+
+function openShop() {
+  const list = document.getElementById('starsList');
+  list.innerHTML = SHOP_ITEMS.map(item => `
+    <div class="leader-row" style="cursor:pointer" onclick="buyItem('${item.id}')">
+      <span>${item.name}</span>
+      <span style="color:#ffdc64">💎 ${item.price}</span>
+    </div>
+  `).join('');
+  openPanel('starsPanel');
+}
+
+function buyItem(id) {
+  if (tg && tg.sendData) {
+    tg.sendData('buy_' + id);
+    log('⏳ Отправляем запрос на оплату...');
+    closePanel('starsPanel');
+  } else {
+    log('❌ Оплата доступна только в Telegram');
+  }
+}
+
+function shareGame() {
+  const refLink = `https://t.me/leaftap_bot?start=${G.nickname || 'player'}`;
+  const text = `🍃 Я набрал ${fmt(G.score)} листочков в игре "Листочки"! Заходи по моей ссылке, играй и получай бонусы: ${refLink}`;
+  
+  if (tg && tg.initData) { tg.switchInlineQuery(text, ['users', 'groups']); return; }
+  if (navigator.share) { navigator.share({ title: 'Листочки', text: text, url: refLink }).catch(() => {}); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => { log('✅ Ссылка скопирована!'); });
+  } else { prompt('Скопируй:', text); }
+}
+
+function showLeaderboard() {
+  const list = document.getElementById('leaderList');
+  list.innerHTML = '<p style="text-align:center;color:#b4c8b4">Загрузка...</p>';
+  openPanel('leaderPanel');
+
+  if (!window.fbLoadLeaderboard) {
+    list.innerHTML = '<p style="text-align:center;color:#ff8a8a">Ошибка: Firebase не загружен</p>';
+    return;
+  }
+
+  window.fbLoadLeaderboard((board) => {
+    if (board.length === 0) {
+      list.innerHTML = '<p style="text-align:center;color:#b4c8b4">Пока пусто</p>';
+    } else {
+      list.innerHTML = board.slice(0, 50).map((e, i) => {
+        const isMe = e.name === G.nickname;
+        return `<div class="leader-row${isMe ? ' me' : ''}">
+          <span><span class="rank">#${i+1}</span> ${e.name}</span>
+          <span>🍃 ${e.score}</span>
+        </div>`;
+      }).join('');
+    }
+  });
+}
+
+setInterval(() => {
+  if (G.energy < G.maxEnergy) {
+    G.energy += 1n;
+    if (G.energy > G.maxEnergy) G.energy = G.maxEnergy;
+  }
+  updateUI();
+}, 2000);
+
+setInterval(() => {
+  if (G.autoTapLevel > 0n) {
+    let gain = G.autoTapLevel * G.multiplier;
+    gain = applyRebirthBonus(gain);
+    if (G.adBoostUntil > Date.now()) gain = gain * 2n;
+    G.score += gain;
+    if (G.score > G.bestScore) G.bestScore = G.score;
+    updateUI();
+  }
+}, 1000);
+
+setInterval(() => {
+  if (!G.goldenActive && Math.random() < 0.4) spawnGolden();
+}, 30000);
+
+setInterval(() => save(), 10000);
+window.addEventListener('beforeunload', save);
+
+load();
+checkNickname();
+updateUI();
+if (tg) tg.MainButton.hide();
+</script>
+</body>
+</html>
