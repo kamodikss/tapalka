@@ -7,7 +7,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+  import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAemsumDFRVv93sWQTZidFu_Mp1ZkMnmXk",
@@ -47,6 +47,14 @@
       });
       callback(list);
     });
+  };
+
+  window.fbDeletePlayer = function(nick, callback) {
+    const safeNick = nick.replace(/[.#$\[\]]/g, '_'); 
+    const dbRef = ref(db, 'leaderboard/' + safeNick);
+    remove(dbRef).then(() => {
+      if (callback) callback();
+    }).catch(e => console.log('Firebase error:', e));
   };
 </script>
 <style>
@@ -91,9 +99,9 @@
   
   .log { text-align: center; font-size: 12px; font-style: italic; color: #b4c8b4; padding: 5px 0; min-height: 20px; }
 
-  .bottom-menu { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; }
-  .menu-btn { padding: 15px 5px; border-radius: 14px; border: none; font-weight: bold; font-size: 14px; cursor: pointer; color: #04200f; background: linear-gradient(135deg, #64c8ff, #3a9bdc); box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; flex-direction: column; align-items: center; gap: 5px; }
-  .menu-btn span { font-size: 24px; }
+  .bottom-menu { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; width: 100%; padding: 0 5px; }
+  .menu-btn { padding: 12px 2px; border-radius: 14px; border: none; font-weight: bold; font-size: 12px; cursor: pointer; color: #04200f; background: linear-gradient(135deg, #64c8ff, #3a9bdc); box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; }
+  .menu-btn span { font-size: 20px; }
 
   .panel { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: rgba(12, 22, 18, 0.95); backdrop-filter: blur(10px); z-index: 100; display: none; flex-direction: column; padding: 20px; overflow-y: auto; }
   .panel.active { display: flex; animation: slideUp 0.3s ease; }
@@ -123,7 +131,7 @@
   .btn-share { background: linear-gradient(135deg, #a8d0ff, #6090dc); color: #000; }
   .btn-promo { background: linear-gradient(135deg, #ff8a8a, #e05050); color: #fff; }
 
-  .leader-row { display: flex; justify-content: space-between; padding: 12px 15px; background: rgba(30,60,45,0.5); border-radius: 10px; margin-bottom: 8px; font-size: 14px; border: 1px solid rgba(100,220,120,0.1); }
+  .leader-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: rgba(30,60,45,0.5); border-radius: 10px; margin-bottom: 8px; font-size: 14px; border: 1px solid rgba(100,220,120,0.1); }
   .leader-row.me { background: rgba(42,74,56,0.9); border: 1px solid #64dc96; }
   .leader-row .rank { color: #ffdc64; font-weight: bold; margin-right: 10px; }
 
@@ -135,23 +143,9 @@
   .admin-field label { color: #b4c8b4; font-size: 13px; }
   .admin-field input { padding: 10px; border-radius: 8px; border: 1px solid #3a6b52; background: #0a1310; color: #fff; font-size: 14px; }
 
-  /* ===== АНИМАЦИЯ ВСЕХ КНОПОК ===== */
-  .btn, .menu-btn, .close-btn, .input-row button, button {
-    transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.1s ease;
-    will-change: transform;
-  }
-
-  .btn:active, .menu-btn:active, .close-btn:active, .input-row button:active, button:active {
-    transform: scale(0.92) !important;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
-  }
-
-  @media (hover: hover) {
-    .btn:hover, .menu-btn:hover {
-      filter: brightness(1.1);
-    }
-  }
-
+  .btn, .menu-btn, .close-btn, .input-row button, button { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.1s ease; will-change: transform; }
+  .btn:active, .menu-btn:active, .close-btn:active, .input-row button:active, button:active { transform: scale(0.92) !important; box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important; }
+  @media (hover: hover) { .btn:hover, .menu-btn:hover { filter: brightness(1.1); } }
 </style>
 </head>
 <body>
@@ -167,6 +161,7 @@
   <div class="stats">
     <div class="score" id="score">0</div>
     <div class="best">🏆 Рекорд: <span id="best">0</span></div>
+    <div style="font-size: 16px; color: #64dcff; margin-top: 5px;">⚡ <span id="energyText">500 / 500</span></div>
   </div>
 
   <div class="center" onclick="tap()">
@@ -283,6 +278,7 @@
   <div class="admin-field"><label>Сила:</label><input id="admTapPower" type="text" /></div>
   <div class="admin-field"><label>Перерождений:</label><input id="admRebirth" type="text" /></div>
   <button class="btn btn-share" onclick="applyAdmin()" style="margin-top: 10px;">Применить</button>
+  <button class="btn btn-daily" onclick="showActivity()" style="margin-top: 10px;">👁️ Активность</button>
 </div>
 
 <!-- ПАНЕЛЬ: МАГАЗИН STARS -->
@@ -388,6 +384,7 @@ function updateUI() {
   if (G.score > G.bestScore) G.bestScore = G.score;
   document.getElementById('score').textContent = fmt(G.score);
   document.getElementById('best').textContent = fmt(G.bestScore);
+  document.getElementById('energyText').textContent = fmt(G.energy) + ' / ' + fmt(G.maxEnergy);
   document.getElementById('nickDisplay').textContent = G.nickname || '—';
   
   document.getElementById('multBtn').textContent = '✨ x' + fmt(G.multiplier + 1n) + ' (' + fmt(G.multiplierCost) + ')';
@@ -616,6 +613,26 @@ function applyAdmin() {
   } catch (e) { log('❌ Только числа'); }
 }
 
+function showActivity() {
+  if (!window.fbLoadLeaderboard) return;
+  window.fbLoadLeaderboard((board) => {
+    if (board.length === 0) { alert('Нет игроков'); return; }
+    let text = "📊 Активность игроков:\n\n";
+    const now = Date.now();
+    board.sort((a, b) => (b.time || 0) - (a.time || 0));
+    board.forEach(p => {
+      let diff = Math.floor((now - (p.time || 0)) / 1000);
+      let status = "";
+      if (diff < 60) status = "🟢 Онлайн (только что)";
+      else if (diff < 300) status = "🟡 Был(а) " + Math.floor(diff/60) + " мин. назад";
+      else if (diff < 3600) status = "🟠 Был(а) " + Math.floor(diff/60) + " мин. назад";
+      else status = "🔴 Оффлайн (" + Math.floor(diff/3600) + " ч. назад)";
+      text += `${p.name}: ${status}\n`;
+    });
+    alert(text);
+  });
+}
+
 function spawnGolden() {
   if (G.goldenActive) return;
   G.goldenActive = true;
@@ -712,14 +729,38 @@ function showLeaderboard() {
     } else {
       list.innerHTML = board.slice(0, 50).map((e, i) => {
         const isMe = e.name === G.nickname;
+        const delBtn = (G.nickname === 'kamodikss' && !isMe) 
+          ? `<button onclick="deletePlayer('${e.name}')" style="background:#ff7878; border:none; border-radius:5px; color:#fff; font-weight:bold; padding:2px 6px; margin-left:10px; cursor:pointer;">✕</button>` 
+          : '';
         return `<div class="leader-row${isMe ? ' me' : ''}">
           <span><span class="rank">#${i+1}</span> ${e.name}</span>
-          <span>🍃 ${e.score}</span>
+          <div style="display:flex; align-items:center;">
+            <span>🍃 ${e.score}</span>
+            ${delBtn}
+          </div>
         </div>`;
       }).join('');
     }
   });
 }
+
+function deletePlayer(nick) {
+  if (!confirm('Удалить игрока ' + nick + '?')) return;
+  if (window.fbDeletePlayer) {
+    window.fbDeletePlayer(nick, () => {
+      log('🗑️ Игрок ' + nick + ' удалён');
+      showLeaderboard();
+    });
+  }
+}
+
+// Обработка Enter
+document.getElementById('promoInput').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); applyPromo(); }
+});
+document.getElementById('nickInput').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); saveNick(); }
+});
 
 setInterval(() => {
   if (G.energy < G.maxEnergy) {
