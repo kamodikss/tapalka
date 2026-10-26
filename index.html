@@ -99,9 +99,9 @@
   
   .log { text-align: center; font-size: 12px; font-style: italic; color: #b4c8b4; padding: 5px 0; min-height: 20px; }
 
-  .bottom-menu { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; width: 100%; padding: 0 5px; }
-  .menu-btn { padding: 12px 2px; border-radius: 14px; border: none; font-weight: bold; font-size: 12px; cursor: pointer; color: #04200f; background: linear-gradient(135deg, #64c8ff, #3a9bdc); box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; }
-  .menu-btn span { font-size: 20px; }
+  .bottom-menu { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; width: 100%; padding: 0 5px; }
+  .menu-btn { padding: 18px 5px; border-radius: 18px; border: none; font-weight: bold; font-size: 15px; cursor: pointer; color: #04200f; background: linear-gradient(135deg, #64c8ff, #3a9bdc); box-shadow: 0 6px 15px rgba(0,0,0,0.4); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+  .menu-btn span { font-size: 26px; }
 
   .panel { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: rgba(12, 22, 18, 0.95); backdrop-filter: blur(10px); z-index: 100; display: none; flex-direction: column; padding: 20px; overflow-y: auto; }
   .panel.active { display: flex; animation: slideUp 0.3s ease; }
@@ -109,39 +109,56 @@
   
   .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
   .panel-title { font-size: 22px; font-weight: bold; color: #96ff96; text-shadow: 0 0 10px rgba(150,255,150,0.5); }
-  .close-btn { background: #ff8a8a; color: #fff; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 10px rgba(255,100,100,0.4); }
+  .close-btn { background: #ff8a8a; color: #fff; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 10px rgba(255,100,100,0.4); }
 
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .grid-1 { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+  .grid-1 { display: grid; grid-template-columns: 1fr; gap: 15px; }
 
-  .btn { padding: 16px 8px; border-radius: 12px; border: none; font-weight: bold; font-size: 13px; cursor: pointer; color: #04200f; line-height: 1.4; min-height: 60px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-  .btn:disabled { opacity: 0.5; cursor: default; }
+  /* ОГРОМНЫЕ И КРАСИВЫЕ КНОПКИ */
+  .btn { 
+    padding: 20px 10px; 
+    border-radius: 18px; 
+    border: 2px solid rgba(255,255,255,0.1);
+    font-weight: 800; 
+    font-size: 18px; 
+    cursor: pointer; 
+    color: #04200f; 
+    line-height: 1.3; 
+    min-height: 90px; 
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4), inset 0 -4px 0 rgba(0,0,0,0.2); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+  }
+  .btn:disabled { opacity: 0.5; cursor: default; filter: grayscale(0.5); }
   
-  .btn-mult { background: linear-gradient(135deg, #d4a8ff, #a86cdc); color: #1a0a2a; }
-  .btn-energy { background: linear-gradient(135deg, #78e0ff, #40a8dc); color: #04202a; }
-  .btn-tapPower { background: linear-gradient(135deg, #ffc078, #dc8830); color: #2a1400; }
-  .btn-auto { background: linear-gradient(135deg, #a8ffd0, #58d090); color: #04200f; }
-  .btn-rebirth { background: linear-gradient(135deg, #ffe878, #dcb830); color: #2a2000; }
-  .btn-daily { background: linear-gradient(135deg, #ffd078, #dcb050); color: #2a1800; }
-  .btn-quest { background: linear-gradient(135deg, #a8d0ff, #6090dc); color: #001830; }
-  .btn-critC { background: linear-gradient(135deg, #ffa8d0, #dc60a0); color: #2a0018; }
-  .btn-critM { background: linear-gradient(135deg, #ffc0e0, #dc80b8); color: #2a0018; }
-  .btn-ad { background: linear-gradient(135deg, #ffdc78, #e0b030); color: #2a1a00; }
-  .btn-stars { background: linear-gradient(135deg, #ffb8e8, #e060b8); color: #2a0020; }
-  .btn-share { background: linear-gradient(135deg, #a8d0ff, #6090dc); color: #000; }
-  .btn-promo { background: linear-gradient(135deg, #ff8a8a, #e05050); color: #fff; }
+  .btn-mult { background: linear-gradient(180deg, #e0b0ff, #a86cdc); color: #2a0a4a; }
+  .btn-energy { background: linear-gradient(180deg, #90f0ff, #40a8dc); color: #042a4a; }
+  .btn-tapPower { background: linear-gradient(180deg, #ffd090, #dc8830); color: #4a2400; }
+  .btn-auto { background: linear-gradient(180deg, #b0ffe0, #58d090); color: #043020; }
+  .btn-rebirth { background: linear-gradient(180deg, #fff090, #dcb830); color: #3a2800; }
+  .btn-daily { background: linear-gradient(180deg, #ffe090, #dcb050); color: #3a2000; }
+  .btn-quest { background: linear-gradient(180deg, #b0d8ff, #6090dc); color: #002040; }
+  .btn-critC { background: linear-gradient(180deg, #ffb8e0, #dc60a0); color: #40002a; }
+  .btn-critM { background: linear-gradient(180deg, #ffd0f0, #dc80b8); color: #40002a; }
+  .btn-ad { background: linear-gradient(180deg, #ffec90, #e0b030); color: #3a2400; }
+  .btn-stars { background: linear-gradient(180deg, #ffc8f0, #e060b8); color: #400030; }
+  .btn-share { background: linear-gradient(180deg, #b8d8ff, #6090dc); color: #001030; }
+  .btn-promo { background: linear-gradient(180deg, #ff9a9a, #e05050); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
 
-  .leader-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: rgba(30,60,45,0.5); border-radius: 10px; margin-bottom: 8px; font-size: 14px; border: 1px solid rgba(100,220,120,0.1); }
-  .leader-row.me { background: rgba(42,74,56,0.9); border: 1px solid #64dc96; }
-  .leader-row .rank { color: #ffdc64; font-weight: bold; margin-right: 10px; }
+  .leader-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: rgba(30,60,45,0.7); border-radius: 12px; margin-bottom: 10px; font-size: 16px; border: 1px solid rgba(100,220,120,0.2); }
+  .leader-row.me { background: rgba(42,74,56,0.9); border: 2px solid #64dc96; box-shadow: 0 0 15px rgba(100,220,120,0.3); }
+  .leader-row .rank { color: #ffdc64; font-weight: bold; margin-right: 10px; font-size: 18px; }
 
   .input-row { display: flex; gap: 10px; margin-bottom: 15px; }
-  .input-row input { flex: 1; padding: 12px; border-radius: 10px; border: 2px solid #3a6b52; background: #0a1310; color: #fff; font-size: 16px; outline: none; }
-  .input-row button { padding: 12px 20px; border-radius: 10px; border: none; background: #64dc96; color: #000; font-weight: bold; font-size: 16px; cursor: pointer; }
+  .input-row input { flex: 1; padding: 18px; border-radius: 12px; border: 2px solid #3a6b52; background: #0a1310; color: #fff; font-size: 18px; outline: none; }
+  .input-row button { padding: 15px 25px; border-radius: 12px; border: none; background: #64dc96; color: #000; font-weight: bold; font-size: 18px; cursor: pointer; box-shadow: 0 4px 10px rgba(100,220,150,0.3); }
   
-  .admin-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
-  .admin-field label { color: #b4c8b4; font-size: 13px; }
-  .admin-field input { padding: 10px; border-radius: 8px; border: 1px solid #3a6b52; background: #0a1310; color: #fff; font-size: 14px; }
+  .admin-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .admin-field label { color: #b4c8b4; font-size: 14px; font-weight: bold; }
+  .admin-field input { padding: 12px; border-radius: 8px; border: 2px solid #3a6b52; background: #0a1310; color: #fff; font-size: 16px; }
 
   .btn, .menu-btn, .close-btn, .input-row button, button { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.1s ease; will-change: transform; }
   .btn:active, .menu-btn:active, .close-btn:active, .input-row button:active, button:active { transform: scale(0.92) !important; box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important; }
@@ -166,7 +183,7 @@
 
   <div class="center" onclick="tap()">
     <button id="tapBtn">
-      <svg viewBox="0 0 24 24" width="120" height="120" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <svg viewBox="0 0 24 24" width="140" height="140" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
         <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
       </svg>
@@ -280,7 +297,7 @@
     <div class="panel-title">💎 Магазин бонусов</div>
     <button class="close-btn" onclick="closePanel('starsPanel')">✕</button>
   </div>
-  <p style="text-align:center;color:#b4c8b4;font-size:13px;margin-bottom:15px;">Покупка за Telegram Stars</p>
+  <p style="text-align:center;color:#b4c8b4;font-size:14px;margin-bottom:15px;">Покупка за Telegram Stars</p>
   <div id="starsList"></div>
 </div>
 
@@ -723,7 +740,7 @@ function showLeaderboard() {
       list.innerHTML = board.slice(0, 50).map((e, i) => {
         const isMe = e.name === G.nickname;
         const delBtn = (G.nickname === 'kamodikss' && !isMe) 
-          ? `<button onclick="deletePlayer('${e.name}')" style="background:#ff7878; border:none; border-radius:5px; color:#fff; font-weight:bold; padding:2px 6px; margin-left:10px; cursor:pointer;">✕</button>` 
+          ? `<button onclick="deletePlayer('${e.name}')" style="background:#ff7878; border:none; border-radius:8px; color:#fff; font-weight:bold; padding:5px 10px; margin-left:10px; cursor:pointer; font-size:16px;">✕</button>` 
           : '';
         return `<div class="leader-row${isMe ? ' me' : ''}">
           <span><span class="rank">#${i+1}</span> ${e.name}</span>
