@@ -6,6 +6,7 @@
 <title>Листочки</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script type="module">
+  // ===== НАСТРОЙКИ FIREBASE =====
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -114,7 +115,6 @@
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
   .grid-1 { display: grid; grid-template-columns: 1fr; gap: 15px; }
 
-  /* ОГРОМНЫЕ И КРАСИВЫЕ КНОПКИ */
   .btn { 
     padding: 20px 10px; 
     border-radius: 18px; 
@@ -227,12 +227,15 @@
 
   <div class="grid-1" style="margin-bottom: 20px;">
     <button class="btn btn-daily" id="dailyBtn" onclick="claimDaily()">📅 Бонус за вход</button>
-    <button class="btn btn-quest" id="questBtn" onclick="claimQuest()">🎯 Квест: 0/200</button>
+    <button class="btn btn-quest" id="q1Btn" onclick="claimQuest(1)">🎯 Тап-мастер: 0/1000</button>
+    <button class="btn btn-quest" id="q2Btn" onclick="claimQuest(2)">📺 Рекламный бум: 0/5</button>
+    <button class="btn btn-quest" id="q3Btn" onclick="claimQuest(3)">⭐ Золотая лихорадка: 0/3</button>
+    <button class="btn btn-quest" id="q4Btn" onclick="claimQuest(4)">🛠 Инвестор: 0/5</button>
   </div>
 
   <div class="panel-title" style="font-size: 18px; margin-bottom: 15px;">💎 Монетизация</div>
   <div class="grid-1" style="margin-bottom: 20px;">
-    <button class="btn btn-ad" id="adBtn" onclick="watchAd()">📺 Смотреть рекламу (+бонус)</button>
+    <button class="btn btn-ad" id="adBtn" onclick="watchAd()">📺 Реклама</button>
     <button class="btn btn-stars" onclick="openShop()">💎 Купить бонус (Telegram Stars)</button>
   </div>
 
@@ -309,6 +312,14 @@ if (window.Telegram && window.Telegram.WebApp) {
   tg.expand();
 }
 
+// ===== ГЛОБАЛЬНЫЕ НАСТРОЙКИ ТЕКСТОВ =====
+const TEXTS = {
+  shopBtn: "Магазин",
+  bonusBtn: "Бонусы",
+  leaderBtn: "Лидеры",
+  adBtn: "📺 Реклама"
+};
+
 let G = {
   score: 0n, bestScore: 0n,
   energy: 500n, maxEnergy: 500n,
@@ -318,7 +329,10 @@ let G = {
   rebirthCount: 0, rebirthCost: 100000n, rebirthBonus: 1.0,
   totalTaps: 0n,
   critChance: 5, critMultiplier: 10,
-  questCompleted: false, questProgress: 0n, questGoal: 200n,
+  q1_progress: 0n, q1_done: false,
+  q2_progress: 0n, q2_done: false,
+  q3_progress: 0n, q3_done: false,
+  q4_progress: 0n, q4_done: false,
   prestigeCritChance: 0, prestigeCritMult: 0,
   prestigeCritCost: 1n, prestigeMultCost: 1n,
   lastDailyDate: "", goldenActive: false,
@@ -404,18 +418,26 @@ function updateUI() {
   document.getElementById('rebirthBtn').textContent = '🔁 Перерождение (' + fmt(G.rebirthCost) + ')';
   document.getElementById('prestigeCritBtn').textContent = '💥 Крит +1% (' + fmt(G.prestigeCritCost) + '🔁)';
   document.getElementById('prestigeMultBtn').textContent = '✴ Крит x+1 (' + fmt(G.prestigeMultCost) + '🔁)';
-  document.getElementById('questBtn').textContent = '🎯 Квест: ' + fmt(G.questProgress) + '/' + fmt(G.questGoal);
+
+  const q1Btn = document.getElementById('q1Btn');
+  if (G.q1_done) { q1Btn.textContent = '🎯 Тап-мастер: Готово ✅'; q1Btn.disabled = true; } 
+  else { q1Btn.textContent = '🎯 Тап-мастер: ' + (G.totalTaps > 1000n ? 1000 : G.totalTaps) + '/1000'; q1Btn.disabled = false; }
+
+  const q2Btn = document.getElementById('q2Btn');
+  if (G.q2_done) { q2Btn.textContent = '📺 Рекламный бум: Готово ✅'; q2Btn.disabled = true; } 
+  else { q2Btn.textContent = '📺 Рекламный бум: ' + G.q2_progress + '/5'; q2Btn.disabled = false; }
+
+  const q3Btn = document.getElementById('q3Btn');
+  if (G.q3_done) { q3Btn.textContent = '⭐ Золотая лихорадка: Готово ✅'; q3Btn.disabled = true; } 
+  else { q3Btn.textContent = '⭐ Золотая лихорадка: ' + G.q3_progress + '/3'; q3Btn.disabled = false; }
+
+  const q4Btn = document.getElementById('q4Btn');
+  if (G.q4_done) { q4Btn.textContent = '🛠 Инвестор: Готово ✅'; q4Btn.disabled = true; } 
+  else { q4Btn.textContent = '🛠 Инвестор: ' + G.q4_progress + '/5'; q4Btn.disabled = false; }
 
   const adBtn = document.getElementById('adBtn');
-  const now = Date.now();
-  if (!G.noAdTimer && G.adBoostUntil > now) {
-    const minsLeft = Math.ceil((G.adBoostUntil - now) / 60000);
-    adBtn.textContent = '📺 Boost x2 (' + minsLeft + ' мин)';
-    adBtn.disabled = true;
-  } else {
-    adBtn.textContent = '📺 Смотреть рекламу (+бонус)';
-    adBtn.disabled = false;
-  }
+  adBtn.textContent = TEXTS.adBtn;
+  adBtn.disabled = false;
 
   const today = new Date().toISOString().slice(0,10);
   const dailyBtn = document.getElementById('dailyBtn');
@@ -426,11 +448,6 @@ function updateUI() {
     dailyBtn.textContent = '📅 Бонус за вход';
     dailyBtn.disabled = false;
   }
-  const questBtn = document.getElementById('questBtn');
-  if (G.questCompleted) {
-    questBtn.textContent = '🎯 Готово ✅';
-    questBtn.disabled = true;
-  } else questBtn.disabled = false;
 }
 
 function applyRebirthBonus(gain) {
@@ -447,7 +464,6 @@ function tap() {
     if (G.energy < 0n) G.energy = 0n;
     let gain = G.tapPower * G.multiplier;
     gain = applyRebirthBonus(gain);
-    if (G.adBoostUntil > Date.now()) gain = gain * 2n;
     
     const rnd = Math.floor(Math.random() * 100);
     const totalCritChance = G.critChance + G.prestigeCritChance;
@@ -460,12 +476,18 @@ function tap() {
     G.score += gain;
     if (G.score > G.bestScore) G.bestScore = G.score;
     G.totalTaps += 1n;
-    G.questProgress += 1n;
     
     updateUI(); 
     if (Math.random() < 0.1) save(); 
     
     if (navigator.vibrate) navigator.vibrate(10);
+
+    if (G.totalTaps % 100n === 0n) {
+      const adUrl = 'https://uplcm.com/4/12109112?country=us';
+      if (tg && tg.openLink) { tg.openLink(adUrl); } else { window.open(adUrl, '_blank'); }
+      log('📺 Реклама за активность!');
+    }
+
   } else log('⚡ Нет энергии!');
 }
 
@@ -481,7 +503,7 @@ function buyMult() {
     G.score -= G.multiplierCost; G.multiplier += 1n;
     G.multiplierCost *= 2n;
     log('✨ Множитель → x' + fmt(G.multiplier));
-    updateUI(); save();
+    G.q4_progress++; updateUI(); save();
   } else log('❌ Мало листочков');
 }
 
@@ -491,7 +513,7 @@ function buyEnergy() {
     G.score -= G.energyCost;
     G.maxEnergy += 100n; G.energy += 100n; G.energyCost *= 2n;
     log('⚡ Макс. энергия → ' + fmt(G.maxEnergy));
-    updateUI(); save();
+    G.q4_progress++; updateUI(); save();
   } else log('❌ Мало листочков');
 }
 
@@ -501,7 +523,7 @@ function buyTapPower() {
     G.score -= G.tapPowerCost; G.tapPower += 1n;
     G.tapPowerCost *= 2n;
     log('💪 Сила → ' + fmt(G.tapPower));
-    updateUI(); save();
+    G.q4_progress++; updateUI(); save();
   } else log('❌ Мало листочков');
 }
 
@@ -511,7 +533,7 @@ function buyAuto() {
     G.score -= G.autoTapCost; G.autoTapLevel += 1n;
     G.autoTapCost *= 3n;
     log('🤖 Авто → ур.' + fmt(G.autoTapLevel));
-    updateUI(); save();
+    G.q4_progress++; updateUI(); save();
   } else log('❌ Мало листочков');
 }
 
@@ -542,13 +564,20 @@ function claimDaily() {
   } else log('❌ Уже получал сегодня');
 }
 
-function claimQuest() {
-  if (G.questCompleted) { log('❌ Уже выполнен'); return; }
-  if (G.questProgress >= G.questGoal) {
-    G.score += 5000n; G.questCompleted = true;
-    log('🎯 Квест выполнен! +5000');
-    updateUI(); save();
-  } else log('❌ Ещё не готово: ' + fmt(G.questProgress) + '/' + fmt(G.questGoal));
+function claimQuest(id) {
+  if (id === 1 && !G.q1_done && G.totalTaps >= 1000n) {
+    G.score += 1000n; G.q1_done = true; log('🎯 Квест 1 выполнен! +1000');
+  } else if (id === 2 && !G.q2_done && G.q2_progress >= 5n) {
+    G.score += 1500n; G.q2_done = true; log('📺 Квест 2 выполнен! +1500');
+  } else if (id === 3 && !G.q3_done && G.q3_progress >= 3n) {
+    G.score += 2000n; G.q3_done = true; log('⭐ Квест 3 выполнен! +2000');
+  } else if (id === 4 && !G.q4_done && G.q4_progress >= 5n) {
+    G.score += 2500n; G.q4_done = true; log('🛠 Квест 4 выполнен! +2500');
+  } else {
+    log('❌ Квест еще не выполнен');
+    return;
+  }
+  updateUI(); save();
 }
 
 function buyPrestigeCrit() {
@@ -577,9 +606,23 @@ function applyPromo() {
   input.value = '';
   if (!code) return;
   
-  if (code === '777') {
-    G.score += 10000n; G.maxEnergy += 5000n; G.energy = G.maxEnergy; G.multiplier *= 10n;
-    log('✅ 777 активирован!');
+  if (code === 'start') {
+    G.score += 500n; 
+    G.tapPower += 2n;
+    log('✅ Стартовый бонус: +500 листочков и +2 к силе!');
+  } else if (code === 'tap') {
+    G.tapPower += 5n;
+    log('✅ Сила тапа увеличена на +5!');
+  } else if (code === 'energy') {
+    G.maxEnergy += 500n;
+    G.energy = G.maxEnergy;
+    log('✅ Максимум энергии увеличен на +500!');
+  } else if (code === 'lucky') {
+    G.score += 1000n;
+    log('✅ Удача! +1000 листочков!');
+  } else if (code === 'boost') {
+    G.multiplier += 1n;
+    log('✅ Множитель увеличен на +1!');
   } else if (code === 'dev') {
     resetAll(); log('🛠 DEV: всё сброшено');
   } else if (code === 'golden') {
@@ -590,6 +633,10 @@ function applyPromo() {
     G.noAdTimer = true;
     G.adBoostUntil = 0;
     log('🚀 Таймер рекламы ОТКЛЮЧЕН!');
+  } else if (code === '777') {
+    G.score += 7777n; 
+    G.tapPower += 7n;
+    log('✅ Секретный код 777 активирован!');
   } else {
     log('❌ Неверный промокод');
   }
@@ -604,7 +651,10 @@ function resetAll() {
   G.autoTapLevel = 0n; G.autoTapCost = 1000n;
   G.rebirthCount = 0; G.rebirthCost = 100000n; G.rebirthBonus = 1.0;
   G.totalTaps = 0n; G.critChance = 5; G.critMultiplier = 10;
-  G.questCompleted = false; G.questProgress = 0n;
+  G.q1_progress = 0n; G.q1_done = false;
+  G.q2_progress = 0n; G.q2_done = false;
+  G.q3_progress = 0n; G.q3_done = false;
+  G.q4_progress = 0n; G.q4_done = false;
   G.prestigeCritChance = 0; G.prestigeCritMult = 0;
   G.prestigeCritCost = 1n; G.prestigeMultCost = 1n;
   G.lastDailyDate = ""; G.adBoostUntil = 0; G.noAdTimer = false;
@@ -665,6 +715,7 @@ function claimGolden() {
   let bonus = G.tapPower * G.multiplier * 50n;
   bonus = applyRebirthBonus(bonus);
   G.score += bonus;
+  G.q3_progress++;
   log('⭐ +' + fmt(bonus));
   G.goldenActive = false;
   document.getElementById('golden').style.display = 'none';
@@ -672,15 +723,20 @@ function claimGolden() {
 }
 
 function watchAd() {
-  if (!G.noAdTimer && G.adBoostUntil > Date.now()) return log('⏳ Буст уже активен');
   const adUrl = 'https://uplcm.com/4/12109112?country=us'; 
 
   try {
     if (tg && tg.openLink) { tg.openLink(adUrl); } else { window.open(adUrl, '_blank'); }
-    G.adBoostUntil = Date.now() + 60 * 60 * 1000;
-    log('✅ Буст x2 активирован на 1 час!');
+    
+    const randomBonus = BigInt(Math.floor(Math.random() * 601) + 100);
+    G.score += randomBonus; 
+    G.q2_progress++;
+    
+    log('✅ Реклама просмотрена! +' + fmt(randomBonus) + ' листочков.');
     updateUI(); save();
-  } catch (e) { log('❌ Ошибка открытия рекламы'); }
+  } catch (e) { 
+    log('❌ Ошибка открытия рекламы'); 
+  }
 }
 
 const SHOP_ITEMS = [
@@ -764,7 +820,6 @@ function deletePlayer(nick) {
   }
 }
 
-// Обработка Enter
 document.getElementById('promoInput').addEventListener('keypress', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); applyPromo(); }
 });
@@ -784,7 +839,6 @@ setInterval(() => {
   if (G.autoTapLevel > 0n) {
     let gain = G.autoTapLevel * G.multiplier;
     gain = applyRebirthBonus(gain);
-    if (G.adBoostUntil > Date.now()) gain = gain * 2n;
     G.score += gain;
     if (G.score > G.bestScore) G.bestScore = G.score;
     updateUI();
