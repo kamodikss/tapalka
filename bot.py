@@ -9,7 +9,7 @@ from aiohttp import web
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "ВСТАВЬ_СЮДА_ТОКЕН_ЕСЛИ_НУЖНО")
 WEBAPP_URL = "https://kamodikss.github.io/tapalka/"
-CHANNELS = ["tapalka_news_md"] # ЗАМЕНИ НА СВОЙ КАНАЛ (без @)
+CHANNELS = ["tapalka_news"] # ЗАМЕНИ НА СВОЙ КАНАЛ (без @)
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
