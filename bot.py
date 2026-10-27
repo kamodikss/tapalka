@@ -6,18 +6,14 @@ from aiogram.filters import CommandStart
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice, PreCheckoutQuery, Message, WebAppInfo, CallbackQuery
 from aiohttp import web
 
-# ТОКЕН БОТА
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "ВСТАВЬ_СЮДА_ТОКЕН_ОТ_BOTFATHER")
-# ССЫЛКА НА ИГРУ (GitHub Pages)
+# ===== НАСТРОЙКИ =====
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "ВСТАВЬ_СЮДА_ТОКЕН_ЕСЛИ_НУЖНО")
 WEBAPP_URL = "https://kamodikss.github.io/tapalka/"
+CHANNELS = ["tapalka_news_md"] # ЗАМЕНИ НА СВОЙ КАНАЛ (без @)
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
-
-# ВАЖНО: СЮДА ВПИШИ ЮЗЕРНЕЙМ ТВОЕГО КАНАЛА (без @)
-# Если каналов несколько, добавь их через запятую: ["channel1", "channel2"]
-CHANNELS = ["tapalka_news"] 
 
 SHOP_ITEMS = {
     "mult_5": {"title": "✨ Множитель +5", "price": 25},
@@ -27,8 +23,10 @@ SHOP_ITEMS = {
     "rebirth_1": {"title": "🔁 Перерождение +1", "price": 200}
 }
 
-# Функция проверки подписки на каналы
 async def check_sub(user_id):
+    """Проверка подписки с защитой от падения"""
+    if not CHANNELS:
+        return True
     for channel in CHANNELS:
         try:
             member = await bot.get_chat_member(chat_id=f"@{channel}", user_id=user_id)
@@ -36,20 +34,19 @@ async def check_sub(user_id):
                 return False
         except Exception as e:
             logging.error(f"Ошибка проверки канала {channel}: {e}")
-            return False
+            # Если не можем проверить — пускаем, чтобы не ломать игру
+            return True 
     return True
 
-# Кнопка для игры
 def get_play_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🍃 Играть", web_app=WebAppInfo(url=WEBAPP_URL))]
     ])
 
-# Кнопки подписки
 def get_sub_kb():
     buttons = []
     for ch in CHANNELS:
-        buttons.append([InlineKeyboardButton(text=f"📢 Подписаться на новости", url=f"https://t.me/{ch}")])
+        buttons.append([InlineKeyboardButton(text="📢 Подписаться", url=f"https://t.me/{ch}")])
     buttons.append([InlineKeyboardButton(text="✅ Я подписался", callback_data="check_sub")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -58,15 +55,13 @@ async def cmd_start(message: Message):
     is_subbed = await check_sub(message.from_user.id)
     if is_subbed:
         await message.answer(
-            "👋 Привет! Ты подписан на наш канал. Нажимай кнопку и играй!\n\n"
-            "🔥 В игре тебя ждут бонусы и листинг $LEAF!",
+            "👋 Привет! Добро пожаловать в игру!\n"
+            "Жми кнопку и начинай тапать!",
             reply_markup=get_play_kb()
         )
     else:
         await message.answer(
-            "⚠️ Для доступа к игре нужно подписаться на наш канал с новостями!\n\n"
-            "1. Нажми кнопку «Подписаться»\n"
-            "2. Вернись сюда и нажми «Я подписался»",
+            "⚠️ Для доступа подпишись на наш канал!",
             reply_markup=get_sub_kb()
         )
 
@@ -75,14 +70,12 @@ async def process_check_sub(callback: CallbackQuery):
     is_subbed = await check_sub(callback.from_user.id)
     if is_subbed:
         await callback.message.edit_text(
-            "✅ Отлично! Теперь ты можешь играть.\n"
-            "Жми кнопку ниже и забирай бонус!",
+            "✅ Отлично! Теперь ты можешь играть.",
             reply_markup=get_play_kb()
         )
     else:
-        await callback.answer("❌ Ты еще не подписался на канал!", show_alert=True)
+        await callback.answer("❌ Ты еще не подписался!", show_alert=True)
 
-# Обработка запроса на покупку из WebApp
 @dp.message(F.web_app_data)
 async def handle_webapp_data(message: Message):
     data = message.web_app_data.data
@@ -92,26 +85,23 @@ async def handle_webapp_data(message: Message):
             item = SHOP_ITEMS[item_id]
             await message.answer_invoice(
                 title=item["title"],
-                description=f"Покупка в игре Листочки",
+                description="Покупка в игре Листочки",
                 payload=f"item_{item_id}",
                 provider_token="",
                 currency="XTR",
                 prices=[LabeledPrice(label=item["title"], amount=item["price"])]
             )
 
-# Проверка перед оплатой
 @dp.pre_checkout_query()
 async def pre_checkout_query(pre_checkout_q: PreCheckoutQuery):
     await bot.answer_pre_checkout_query(pre_checkout_q.id, ok=True)
 
-# Успешная оплата
 @dp.message(F.successful_payment)
 async def successful_payment(message: Message):
     payload = message.successful_payment.invoice_payload
     item_id = payload.replace("item_", "")
-    await message.answer(f"✅ Успешно куплено: {SHOP_ITEMS[item_id]['title']}!\n\nЗаходи в игру, чтобы использовать бонус.")
+    await message.answer(f"✅ Успешно куплено: {SHOP_ITEMS[item_id]['title']}!")
 
-# --- Веб-сервер для Render ---
 async def handle(request):
     return web.Response(text="Bot is running!")
 
