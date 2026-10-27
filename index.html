@@ -6,7 +6,6 @@
 <title>Листочки</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script type="module">
-  // ===== НАСТРОЙКИ FIREBASE =====
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -23,10 +22,11 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  window.fbSaveScore = function(nick, scoreStr) {
-    if (!nick) return;
-    const safeNick = nick.replace(/[.#$\[\]]/g, '_'); 
-    set(ref(db, 'leaderboard/' + safeNick), {
+  // Сохраняем по Telegram ID (а не по нику!)
+  window.fbSaveScore = function(tgId, nick, scoreStr) {
+    if (!tgId) return;
+    set(ref(db, 'leaderboard/' + tgId), {
+      id: tgId,
       name: nick,
       score: scoreStr,
       time: Date.now()
@@ -50,9 +50,8 @@
     });
   };
 
-  window.fbDeletePlayer = function(nick, callback) {
-    const safeNick = nick.replace(/[.#$\[\]]/g, '_'); 
-    const dbRef = ref(db, 'leaderboard/' + safeNick);
+  window.fbDeletePlayer = function(tgId, callback) {
+    const dbRef = ref(db, 'leaderboard/' + tgId);
     remove(dbRef).then(() => {
       if (callback) callback();
     }).catch(e => console.log('Firebase error:', e));
@@ -312,7 +311,6 @@ if (window.Telegram && window.Telegram.WebApp) {
   tg.expand();
 }
 
-// ===== ГЛОБАЛЬНЫЕ НАСТРОЙКИ ТЕКСТОВ =====
 const TEXTS = {
   shopBtn: "Магазин",
   bonusBtn: "Бонусы",
@@ -348,8 +346,10 @@ function save() {
     else data[k] = G[k];
   }
   localStorage.setItem('tapalka_save', JSON.stringify(data));
-  if (window.fbSaveScore && G.nickname) {
-    window.fbSaveScore(G.nickname, G.bestScore.toString());
+  
+  // СОХРАНЯЕМ В БАЗУ ПО TELEGRAM ID
+  if (window.fbSaveScore && G.nickname && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+    window.fbSaveScore(tg.initDataUnsafe.user.id, G.nickname, G.bestScore.toString());
   }
 }
 
@@ -794,9 +794,9 @@ function showLeaderboard() {
       list.innerHTML = '<p style="text-align:center;color:#b4c8b4">Пока пусто</p>';
     } else {
       list.innerHTML = board.slice(0, 50).map((e, i) => {
-        const isMe = e.name === G.nickname;
+        const isMe = (tg && tg.initDataUnsafe.user && e.id == tg.initDataUnsafe.user.id);
         const delBtn = (G.nickname === 'kamodikss' && !isMe) 
-          ? `<button onclick="deletePlayer('${e.name}')" style="background:#ff7878; border:none; border-radius:8px; color:#fff; font-weight:bold; padding:5px 10px; margin-left:10px; cursor:pointer; font-size:16px;">✕</button>` 
+          ? `<button onclick="deletePlayer('${e.id}')" style="background:#ff7878; border:none; border-radius:8px; color:#fff; font-weight:bold; padding:5px 10px; margin-left:10px; cursor:pointer; font-size:16px;">✕</button>` 
           : '';
         return `<div class="leader-row${isMe ? ' me' : ''}">
           <span><span class="rank">#${i+1}</span> ${e.name}</span>
@@ -810,11 +810,11 @@ function showLeaderboard() {
   });
 }
 
-function deletePlayer(nick) {
-  if (!confirm('Удалить игрока ' + nick + '?')) return;
+function deletePlayer(id) {
+  if (!confirm('Удалить игрока?')) return;
   if (window.fbDeletePlayer) {
-    window.fbDeletePlayer(nick, () => {
-      log('🗑️ Игрок ' + nick + ' удалён');
+    window.fbDeletePlayer(id, () => {
+      log('🗑️ Игрок удалён');
       showLeaderboard();
     });
   }
