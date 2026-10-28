@@ -11,7 +11,7 @@ from aiogram.client.default import DefaultBotProperties
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 RENDER_URL = "https://tapalka-bot-hcsb.onrender.com"
 WEBHOOK_PATH = "/webhook"
-CHANNELS = ["tapalka_news"] # Твой канал
+CHANNELS = ["tapalka_news"]
 
 logging.basicConfig(level=logging.INFO)
 
@@ -76,17 +76,11 @@ async def pre_checkout_query(pre_checkout_q: PreCheckoutQuery):
 async def successful_payment(message: Message):
     await message.answer("✅ Успешно куплено!")
 
-# ===== ФУНКЦИЯ ЗАПУСКА =====
-async def on_startup(bot: Bot):
-    await bot.set_webhook(f"{RENDER_URL}{WEBHOOK_PATH}")
-    logging.info("Webhook установлен!")
-
 def main():
     app = web.Application()
     webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
     webhook_requests_handler.register(app, path=WEBHOOK_PATH)
     setup_application(app, dp, bot=bot)
-    app.on_startup.append(on_startup)
     
     port = int(os.environ.get("PORT", 10000))
     web.run_app(app, host="0.0.0.0", port=port)
