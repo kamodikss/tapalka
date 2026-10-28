@@ -1,17 +1,15 @@
+import asyncio
 import logging
 import os
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice, PreCheckoutQuery, Message, WebAppInfo, CallbackQuery
-from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiogram.client.default import DefaultBotProperties
 
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-RENDER_URL = "https://tapalka-bot-hcsb.onrender.com"
-WEBHOOK_PATH = "/webhook"
-CHANNELS = ["tapalka_news"]
+CHANNELS = ["tapalka_news"] # Твой канал
 
 logging.basicConfig(level=logging.INFO)
 
@@ -76,14 +74,22 @@ async def pre_checkout_query(pre_checkout_q: PreCheckoutQuery):
 async def successful_payment(message: Message):
     await message.answer("✅ Успешно куплено!")
 
-def main():
+# --- ВЕБ-СЕРВЕР (чтобы Render не выключал) ---
+async def handle(request):
+    return web.Response(text="Bot is running!")
+
+async def start_web_server():
     app = web.Application()
-    webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
-    webhook_requests_handler.register(app, path=WEBHOOK_PATH)
-    setup_application(app, dp, bot=bot)
-    
-    port = int(os.environ.get("PORT", 10000))
-    web.run_app(app, host="0.0.0.0", port=port)
+    app.router.add_get("/", handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", int(os.environ.get("PORT", 10000)))
+    await site.start()
+
+async def main():
+    await start_web_server()
+    logging.info("Бот запущен и работает!")
+    await dp.start_polling(bot) # Запускаем опрос прямо здесь
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
