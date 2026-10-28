@@ -5,11 +5,16 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice, PreCheckoutQuery, Message, WebAppInfo, CallbackQuery
 from aiohttp import web
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 # ===== НАСТРОЙКИ =====
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "ВСТАВЬ_СЮДА_ТОКЕН_ЕСЛИ_НУЖНО")
-WEBAPP_URL = "https://kamodikss.github.io/tapalka/"
-CHANNELS = ["tapalka_news"] # ЗАМЕНИ НА СВОЙ КАНАЛ (без @)
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+# ССЫЛКА НА ТВОЙ СЕРВИС НА RENDER (из логов, вида https://tapalka-bot-hcsb.onrender.com)
+RENDER_URL = "https://tapalka-bot-hcsb.onrender.com"
+WEBHOOK_PATH = "/webhook"
+
+# ВАЖНО: СЮДА ВПИШИ ЮЗЕРНЕЙМ ТВОЕГО КАНАЛА (без @)
+CHANNELS = ["tapalka_news"] 
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
@@ -24,55 +29,35 @@ SHOP_ITEMS = {
 }
 
 async def check_sub(user_id):
-    """Проверка подписки с защитой от падения"""
-    if not CHANNELS:
-        return True
+    if not CHANNELS: return True
     for channel in CHANNELS:
         try:
             member = await bot.get_chat_member(chat_id=f"@{channel}", user_id=user_id)
-            if member.status in ["left", "kicked"]:
-                return False
+            if member.status in ["left", "kicked"]: return False
         except Exception as e:
             logging.error(f"Ошибка проверки канала {channel}: {e}")
-            # Если не можем проверить — пускаем, чтобы не ломать игру
-            return True 
+            return True
     return True
 
 def get_play_kb():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🍃 Играть", web_app=WebAppInfo(url=WEBAPP_URL))]
-    ])
+    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🍃 Играть", web_app=WebAppInfo(url="https://kamodikss.github.io/tapalka/"))]])
 
 def get_sub_kb():
-    buttons = []
-    for ch in CHANNELS:
-        buttons.append([InlineKeyboardButton(text="📢 Подписаться", url=f"https://t.me/{ch}")])
+    buttons = [[InlineKeyboardButton(text="📢 Подписаться", url=f"https://t.me/{ch}")] for ch in CHANNELS]
     buttons.append([InlineKeyboardButton(text="✅ Я подписался", callback_data="check_sub")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
-    is_subbed = await check_sub(message.from_user.id)
-    if is_subbed:
-        await message.answer(
-            "👋 Привет! Добро пожаловать в игру!\n"
-            "Жми кнопку и начинай тапать!",
-            reply_markup=get_play_kb()
-        )
+    if await check_sub(message.from_user.id):
+        await message.answer("👋 Привет! Жми кнопку и играй!", reply_markup=get_play_kb())
     else:
-        await message.answer(
-            "⚠️ Для доступа подпишись на наш канал!",
-            reply_markup=get_sub_kb()
-        )
+        await message.answer("⚠️ Для доступа подпишись на канал!", reply_markup=get_sub_kb())
 
 @dp.callback_query(F.data == "check_sub")
 async def process_check_sub(callback: CallbackQuery):
-    is_subbed = await check_sub(callback.from_user.id)
-    if is_subbed:
-        await callback.message.edit_text(
-            "✅ Отлично! Теперь ты можешь играть.",
-            reply_markup=get_play_kb()
-        )
+    if await check_sub(callback.from_user.id):
+        await callback.message.edit_text("✅ Отлично! Теперь ты можешь играть.", reply_markup=get_play_kb())
     else:
         await callback.answer("❌ Ты еще не подписался!", show_alert=True)
 
@@ -83,14 +68,7 @@ async def handle_webapp_data(message: Message):
         item_id = data.replace("buy_", "")
         if item_id in SHOP_ITEMS:
             item = SHOP_ITEMS[item_id]
-            await message.answer_invoice(
-                title=item["title"],
-                description="Покупка в игре Листочки",
-                payload=f"item_{item_id}",
-                provider_token="",
-                currency="XTR",
-                prices=[LabeledPrice(label=item["title"], amount=item["price"])]
-            )
+            await message.answer_invoice(title=item["title"], description="Покупка", payload=f"item_{item_id}", provider_token="", currency="XTR", prices=[LabeledPrice(label=item["title"], amount=item["price"])])
 
 @dp.pre_checkout_query()
 async def pre_checkout_query(pre_checkout_q: PreCheckoutQuery):
@@ -98,24 +76,21 @@ async def pre_checkout_query(pre_checkout_q: PreCheckoutQuery):
 
 @dp.message(F.successful_payment)
 async def successful_payment(message: Message):
-    payload = message.successful_payment.invoice_payload
-    item_id = payload.replace("item_", "")
-    await message.answer(f"✅ Успешно куплено: {SHOP_ITEMS[item_id]['title']}!")
+    await message.answer("✅ Успешно куплено!")
 
-async def handle(request):
-    return web.Response(text="Bot is running!")
-
-async def start_web_server():
-    app = web.Application()
-    app.router.add_get("/", handle)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", int(os.environ.get("PORT", 8080)))
-    await site.start()
+# ===== ВЕБ-СЕРВЕР ДЛЯ WEBHOOK =====
+async def on_startup(bot: Bot):
+    await bot.set_webhook(f"{RENDER_URL}{WEBHOOK_PATH}")
 
 async def main():
-    await start_web_server()
-    await dp.start_polling(bot)
+    app = web.Application()
+    webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+    webhook_requests_handler.register(app, path=WEBHOOK_PATH)
+    setup_application(app, dp, bot=bot)
+    app.on_startup.append(on_startup)
+    # Render передает порт через переменную окружения PORT
+    port = int(os.environ.get("PORT", 8080))
+    web.run_app(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
     asyncio.run(main())
