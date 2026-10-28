@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 from aiohttp import web
@@ -12,13 +11,10 @@ from aiogram.client.default import DefaultBotProperties
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 RENDER_URL = "https://tapalka-bot-hcsb.onrender.com"
 WEBHOOK_PATH = "/webhook"
-
-# ВАЖНО: СЮДА ВПИШИ ЮЗЕРНЕЙМ ТВОЕГО КАНАЛА (без @)
-CHANNELS = ["tapalka_news"]
+CHANNELS = ["tapalka_news"] # Твой канал
 
 logging.basicConfig(level=logging.INFO)
 
-# Инициализация бота и диспетчера
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher()
 
@@ -80,31 +76,19 @@ async def pre_checkout_query(pre_checkout_q: PreCheckoutQuery):
 async def successful_payment(message: Message):
     await message.answer("✅ Успешно куплено!")
 
-# ===== ВЕБХУК =====
+# ===== ФУНКЦИЯ ЗАПУСКА =====
 async def on_startup(bot: Bot):
     await bot.set_webhook(f"{RENDER_URL}{WEBHOOK_PATH}")
     logging.info("Webhook установлен!")
 
-async def on_shutdown(bot: Bot):
-    await bot.delete_webhook()
-    logging.info("Webhook удален!")
-
 def main():
     app = web.Application()
-    
-    # Регистрируем обработчик вебхука
     webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
     webhook_requests_handler.register(app, path=WEBHOOK_PATH)
-    
-    # Настраиваем приложение
     setup_application(app, dp, bot=bot)
-    
-    # Добавляем хуки запуска и остановки
     app.on_startup.append(on_startup)
-    app.on_shutdown.append(on_shutdown)
     
-    # Запускаем сервер. Render автоматически передаст порт 10000 в переменную PORT
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 10000))
     web.run_app(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
