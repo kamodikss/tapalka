@@ -1,14 +1,15 @@
+import asyncio
 import logging
 import os
 from aiohttp import web
-from aiogram import Bot, Dispatcher, F
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice, PreCheckoutQuery, Message, WebAppInfo, CallbackQuery
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiogram.client.default import DefaultBotProperties
 
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-# ТВОЙ АДРЕС RENDER (из логов)
 RENDER_URL = "https://tapalka-bot-hcsb.onrender.com"
 WEBHOOK_PATH = "/webhook"
 
@@ -16,7 +17,9 @@ WEBHOOK_PATH = "/webhook"
 CHANNELS = ["tapalka_news"]
 
 logging.basicConfig(level=logging.INFO)
-bot = Bot(token=BOT_TOKEN)
+
+# Инициализация бота и диспетчера
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher()
 
 SHOP_ITEMS = {
@@ -77,10 +80,14 @@ async def pre_checkout_query(pre_checkout_q: PreCheckoutQuery):
 async def successful_payment(message: Message):
     await message.answer("✅ Успешно куплено!")
 
-# ===== ФУНКЦИЯ ЗАПУСКА WEBHOOK =====
-async def on_startup(app):
+# ===== ВЕБХУК =====
+async def on_startup(bot: Bot):
     await bot.set_webhook(f"{RENDER_URL}{WEBHOOK_PATH}")
     logging.info("Webhook установлен!")
+
+async def on_shutdown(bot: Bot):
+    await bot.delete_webhook()
+    logging.info("Webhook удален!")
 
 def main():
     app = web.Application()
@@ -92,11 +99,12 @@ def main():
     # Настраиваем приложение
     setup_application(app, dp, bot=bot)
     
-    # Добавляем запуск вебхука при старте
+    # Добавляем хуки запуска и остановки
     app.on_startup.append(on_startup)
+    app.on_shutdown.append(on_shutdown)
     
-    # Запускаем сервер (это ЗАМЕНИТ asyncio.run)
-    port = int(os.environ.get("PORT", 10000))
+    # Запускаем сервер. Render автоматически передаст порт 10000 в переменную PORT
+    port = int(os.environ.get("PORT", 8080))
     web.run_app(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
