@@ -1,20 +1,19 @@
-import asyncio
 import logging
 import os
-from aiogram import Bot, Dispatcher, types, F
+from aiohttp import web
+from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice, PreCheckoutQuery, Message, WebAppInfo, CallbackQuery
-from aiohttp import web
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-# ССЫЛКА НА ТВОЙ СЕРВИС НА RENDER (из логов, вида https://tapalka-bot-hcsb.onrender.com)
+# ТВОЙ АДРЕС RENDER (из логов)
 RENDER_URL = "https://tapalka-bot-hcsb.onrender.com"
 WEBHOOK_PATH = "/webhook"
 
 # ВАЖНО: СЮДА ВПИШИ ЮЗЕРНЕЙМ ТВОЕГО КАНАЛА (без @)
-CHANNELS = ["tapalka_news"] 
+CHANNELS = ["tapalka_news"]
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
@@ -78,19 +77,27 @@ async def pre_checkout_query(pre_checkout_q: PreCheckoutQuery):
 async def successful_payment(message: Message):
     await message.answer("✅ Успешно куплено!")
 
-# ===== ВЕБ-СЕРВЕР ДЛЯ WEBHOOK =====
+# ===== ФУНКЦИЯ ЗАПУСКА WEBHOOK =====
 async def on_startup(bot: Bot):
     await bot.set_webhook(f"{RENDER_URL}{WEBHOOK_PATH}")
+    logging.info("Webhook установлен!")
 
-async def main():
+def main():
     app = web.Application()
+    
+    # Регистрируем обработчик вебхука
     webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
     webhook_requests_handler.register(app, path=WEBHOOK_PATH)
+    
+    # Настраиваем приложение
     setup_application(app, dp, bot=bot)
+    
+    # Добавляем запуск вебхука при старте
     app.on_startup.append(on_startup)
-    # Render передает порт через переменную окружения PORT
+    
+    # Запускаем сервер (это ЗАМЕНИТ asyncio.run)
     port = int(os.environ.get("PORT", 8080))
     web.run_app(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
