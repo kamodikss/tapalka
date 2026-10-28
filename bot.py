@@ -78,7 +78,7 @@ async def successful_payment(message: Message):
     await message.answer("✅ Успешно куплено!")
 
 # ===== ФУНКЦИЯ ЗАПУСКА WEBHOOK =====
-async def on_startup(bot: Bot):
+async def on_startup(app):
     await bot.set_webhook(f"{RENDER_URL}{WEBHOOK_PATH}")
     logging.info("Webhook установлен!")
 
