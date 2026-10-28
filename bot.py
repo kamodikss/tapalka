@@ -96,7 +96,7 @@ def main():
     app.on_startup.append(on_startup)
     
     # Запускаем сервер (это ЗАМЕНИТ asyncio.run)
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 10000))
     web.run_app(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
